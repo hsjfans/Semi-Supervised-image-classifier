@@ -6,11 +6,13 @@ import torch.optim as optim
 from config import train_path, test_path, val_path, unlabel_path, lambda_u, num_class,\
     mu, batch_size, lr, beta, weight_decay, epochs, threshold
 from tqdm import tqdm
+from config import device
 #  train_loader, test_dataset, val_loader, unlabel_loader
 
 
 def run_batch(label_img, label, weak_img, strong_img, model, lambda_u, threshold):
-
+    weak_img.to(device), strong_img.to(
+        device), label_img.to(device), label.to(device)
     out, a_u, A_u = model(label_img, weak_img, strong_img)
     # 1) Cross-entropy loss for labeled data.
     l_x = F.cross_entropy(out, label)
@@ -29,6 +31,7 @@ def run_val_epoch(model, val_loader, batch_size):
     loss = 0.0
     acc = 0.0
     for img, label in val_loader:
+        img.to(device), label.to(device)
         out = model.predict(img)
         acc += (torch.argmax(out, dim=1) == label).sum().item() / batch_size
         L = F.cross_entropy(out, label)
@@ -72,6 +75,7 @@ def save_model(model, epoch):
 if __name__ == "__main__":
 
     model = FixMatch(num_class)
+    model.to(device)
     op = optim.SGD(model.parameters(), lr=lr,
                    weight_decay=weight_decay, momentum=beta)
     train_loader, val_loader, test_loader, unlabel_loader, labels = load_data(

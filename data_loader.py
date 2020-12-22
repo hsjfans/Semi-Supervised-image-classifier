@@ -8,6 +8,24 @@ import numpy as np
 import torch
 
 
+def get_mean_and_std(loader):
+
+    mean = 0.0
+    for images, _ in loader:
+        batch_samples = images.size(0)
+        images = images.view(batch_samples, images.size(1), -1)
+        mean += images.mean(2).sum(0)
+    mean = mean / len(loader)
+    var = 0.0
+    for images, _ in loader:
+        batch_samples = images.size(0)
+        images = images.view(batch_samples, images.size(1), -1)
+        var += ((images - mean.unsqueeze(1))**2).sum([0, 2])
+
+    std = torch.sqrt(var / (len(loader) * 224 * 224))
+    return mean, std
+
+
 def weak_transform(img):
     weak_img = transforms.RandomHorizontalFlip(p=0.5)(img)
     return weak_img
@@ -44,25 +62,27 @@ def load_train_images(path):
     return data, labels
 
 
-def load_val_images(path, labels):
+def load_val_images(path, labels, normalization):
     txt_path = path + "/val_annotations.txt"
     val_data = []
     with open(txt_path, 'r') as f:
         for line in tqdm(f.readlines()):
             words = line.split('\t')
             name, label = words[0], words[1]
-            img = torch.from_numpy(
-                np.array(Image.open(f'{path}/images/{name}').convert('RGB'))).permute(2, 0, 1).float()
+            img = np.array(Image.open(f'{path}/images/{name}').convert('RGB'))
+            img = torch.from_numpy(img).permute(2, 0, 1).float()
+            img = normalization(img)
             val_data.append([img, labels[label]])
     return val_data
 
 
-def load_unlabeled_data(path):
+def load_unlabeled_data(path, normalization):
     data = []
     images = os.listdir(path)
     for image in tqdm(images):
-        img = torch.from_numpy(
-            np.array(Image.open(f'{path}/{image}').convert('RGB'))).permute(2, 0, 1).float()
+        img = np.array(Image.open(f'{path}/{image}').convert('RGB'))
+        img = torch.from_numpy(img).permute(2, 0, 1).float()
+        img = normalization(img)
         data.append(img)
     return data
 
@@ -100,13 +120,16 @@ def load_data(train_path, val_path, test_path, unlabel_path, batch_size, mu):
     train_dataset, labels = load_train_images(train_path)
     train_loader = DataLoader(LabelDataSet(train_dataset), batch_size=batch_size,
                               shuffle=True)
-    val_dataset = load_val_images(val_path, labels)
+    mean, std = get_mean_and_std(train_loader)
+    print(mean.shape, std.shape)
+    normalization = transforms.Normalize(mean, std)
+    val_dataset = load_val_images(val_path, labels, normalization)
     val_loader = DataLoader(LabelDataSet(val_dataset), batch_size=batch_size,
                             shuffle=True)
-    test_dataset = load_unlabeled_data(test_path)
+    test_dataset = load_unlabeled_data(test_path, normalization)
     test_loader = DataLoader(UnLabelDataSet(test_dataset, test=True), batch_size=batch_size,
                              shuffle=True)
-    unlabel_dataset = load_unlabeled_data(unlabel_path)
+    unlabel_dataset = load_unlabeled_data(unlabel_path, normalization)
     unlabel_loader = DataLoader(UnLabelDataSet(unlabel_dataset), batch_size=mu * batch_size,
                                 shuffle=True)
     return train_loader, val_loader, test_loader, unlabel_loader, labels

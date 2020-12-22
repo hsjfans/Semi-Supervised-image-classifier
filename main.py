@@ -20,8 +20,8 @@ def run_batch(label_img, label, weak_img, strong_img, model, lambda_u, threshold
     # 2) Cross-entropy loss with pseudo-label B and conﬁdence for unlabeled data
     max_probs, _ = torch.max(a_u, dim=1)
     mask = max_probs.ge(threshold).float()
-    l_u = (F.cross_entropy(A_u, torch.argmax(
-        a_u, dim=1), reduction='none') * mask).mean()
+    l_u = (F.cross_entropy(torch.argmax(
+        a_u, dim=1), A_u, reduction='none') * mask).mean()
     loss = l_x + lambda_u * l_u
     return loss
 

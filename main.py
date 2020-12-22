@@ -74,7 +74,7 @@ def save_model(model, epoch):
 
 if __name__ == "__main__":
 
-    model = FixMatch(num_class)
+    model = FixMatch(num_class, 34)
     model.to(device)
     op = optim.SGD(model.parameters(), lr=lr,
                    weight_decay=weight_decay, momentum=beta)

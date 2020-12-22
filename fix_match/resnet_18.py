@@ -35,7 +35,7 @@ class ResBlock(nn.Module):
 
 class ResNet18(nn.Module):
 
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, n_cov1=2, n_cov2=2, n_cov3=2, n_cov4=2):
 
         super(ResNet18, self).__init__()
         self.in_channels = 32
@@ -44,10 +44,10 @@ class ResNet18(nn.Module):
             nn.BatchNorm2d(32),
             nn.ReLU()
         )
-        self.layer1 = self.make_layer(64, 2, 1)
-        self.layer2 = self.make_layer(128, 2, 2)
-        self.layer3 = self.make_layer(256, 2, 2)
-        self.layer4 = self.make_layer(512, 2, 2)
+        self.layer1 = self.make_layer(64, n_cov1, 1)
+        self.layer2 = self.make_layer(128, n_cov2, 2)
+        self.layer3 = self.make_layer(256, n_cov3, 2)
+        self.layer4 = self.make_layer(512, n_cov4, 2)
         self.fc = nn.Linear(2048, num_classes)
         self._init()
 
@@ -77,3 +77,18 @@ class ResNet18(nn.Module):
         out = F.avg_pool2d(out, 4)
         out = out.view(out.size(0), -1)
         return self.fc(out)
+
+
+def resNet_34(num_classes: int) -> ResNet18:
+    return ResNet18(num_classes, 3, 4, 6, 3)
+
+
+def resNet_18(num_classes: int) -> ResNet18:
+    return ResNet18(num_classes)
+
+
+def resNet(num_classes: int, ty: int = 34):
+    if ty == 34:
+        return resNet_34(num_classes)
+    else:
+        return resNet_18(num_classes)

@@ -1,4 +1,4 @@
-from fix_match.resnet_18 import ResNet18
+from fix_match.resnet_18 import resNet
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
@@ -6,9 +6,9 @@ import torch.nn.functional as F
 
 class FixMatch(nn.Module):
 
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, ty=34):
         super(FixMatch, self).__init__()
-        self.net = ResNet18(num_classes)
+        self.net = resNet(num_classes, ty)
 
     def predict(self, img):
         return F.softmax(self.net(img))

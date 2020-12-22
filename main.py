@@ -12,8 +12,10 @@ from config import device
 
 
 def run_batch(label_img, label, weak_img, strong_img, model, lambda_u, threshold):
-    weak_img.to(device), strong_img.to(
-        device), label_img.to(device), label.to(device)
+    weak_img = weak_img.to(device)
+    strong_img = strong_img.to(device)
+    label_img = label_img.to(device)
+    label = label.to(device)
     out, a_u, A_u = model(label_img, weak_img, strong_img)
     acc = (torch.argmax(out, dim=1) == label).sum().item() / len(label)
     # 1) Cross-entropy loss for labeled data.
@@ -32,7 +34,8 @@ def run_val_epoch(model, val_loader):
     loss = 0.0
     acc = 0.0
     for img, label in val_loader:
-        img.to(device), label.to(device)
+        img = img.to(device)
+        label = label.to(device)
         out = model.predict(img)
         acc += (torch.argmax(out, dim=1) == label).sum().item() / len(label)
         L = F.cross_entropy(out, label)

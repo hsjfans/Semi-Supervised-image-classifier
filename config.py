@@ -7,7 +7,7 @@ unlabel_path = '/Users/mitmit/Desktop/images_data/unlabel_from_train'
 # The hyper
 num_class = 200
 lambda_u = 1
-mu = 1
+mu = 2
 batch_size = 32
 lr = 0.03
 beta = 0.8

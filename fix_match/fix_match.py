@@ -14,9 +14,10 @@ class FixMatch():
 
     def forward(self, label_img, weak_img, strong_img):
         # print(label_img.shape, weak_img.shape, strong_img.shape)
-        label_size, aug_size = label_img.shape[0], label_img.shape[0]
+        label_size, aug_size = label_img.shape[0], weak_img.shape[0]
         x = torch.cat([label_img, weak_img, strong_img], dim=0)
         out = F.softmax(self.net(x))
+        # print(label_size, aug_size)
         label_out, a_u, A_u = torch.split(
             out, [label_size, aug_size, aug_size], dim=0)
         return label_out, a_u, A_u

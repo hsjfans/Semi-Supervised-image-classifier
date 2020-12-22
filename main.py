@@ -27,7 +27,7 @@ def run_batch(label_img, label, weak_img, strong_img, model, lambda_u, threshold
     return loss, acc
 
 
-def run_val_epoch(model, val_loader, batch_size):
+def run_val_epoch(model, val_loader):
     model.eval()
     loss = 0.0
     acc = 0.0
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         start = time.time()
         train_loss, train_acc = run_train_epoch(model, op, train_loader, unlabel_loader,
                                                 max_batch, lambda_u, threshold)
-        val_loss, val_acc = run_val_epoch(model, val_loader, batch_size)
+        val_loss, val_acc = run_val_epoch(model, val_loader)
         train_loss_list.append(train_loss)
         val_loss_list.append(val_loss)
         val_acc_list.append(val_acc)

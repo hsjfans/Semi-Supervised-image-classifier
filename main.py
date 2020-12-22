@@ -1,5 +1,6 @@
 from fix_match import FixMatch
 import torch
+import time
 import torch.nn.functional as F
 from data_loader import load_data
 import torch.optim as optim
@@ -14,16 +15,16 @@ def run_batch(label_img, label, weak_img, strong_img, model, lambda_u, threshold
     weak_img.to(device), strong_img.to(
         device), label_img.to(device), label.to(device)
     out, a_u, A_u = model(label_img, weak_img, strong_img)
+    acc = (torch.argmax(out, dim=1) == label).sum().item() / len(label)
     # 1) Cross-entropy loss for labeled data.
-    l_x = F.cross_entropy(out, label)
+    l_x = F.nll_loss(out, label)
 
     # 2) Cross-entropy loss with pseudo-label B and conﬁdence for unlabeled data
-    max_probs, _ = torch.max(a_u, dim=1)
+    max_probs, a_u_label = torch.max(a_u, dim=1)
     mask = max_probs.ge(threshold).float()
-    l_u = (F.cross_entropy(torch.argmax(
-        a_u, dim=1), A_u, reduction='none') * mask).mean()
+    l_u = (F.nll_loss(A_u, a_u_label.detach(), reduction='none') * mask).mean()
     loss = l_x + lambda_u * l_u
-    return loss
+    return loss, acc
 
 
 def run_val_epoch(model, val_loader, batch_size):
@@ -33,7 +34,7 @@ def run_val_epoch(model, val_loader, batch_size):
     for img, label in val_loader:
         img.to(device), label.to(device)
         out = model.predict(img)
-        acc += (torch.argmax(out, dim=1) == label).sum().item() / batch_size
+        acc += (torch.argmax(out, dim=1) == label).sum().item() / len(label)
         L = F.cross_entropy(out, label)
         loss += L.item()
     return loss / len(val_loader), acc / len(val_loader)
@@ -42,6 +43,7 @@ def run_val_epoch(model, val_loader, batch_size):
 def run_train_epoch(model, op, train_loader, unlabel_loader, max_batch, lambda_u, threshold):
     model.train()
     loss = 0.0
+    total_acc = 0.0
     labeled_iter = iter(train_loader)
     unlabeled_iter = iter(unlabel_loader)
 
@@ -58,13 +60,14 @@ def run_train_epoch(model, op, train_loader, unlabel_loader, max_batch, lambda_u
             unlabeled_iter = iter(unlabel_loader)
             weak_img, strong_img = unlabeled_iter.next()
 
-        L = run_batch(img, label, weak_img, strong_img,
-                      model, lambda_u, threshold)
+        L, acc = run_batch(img, label, weak_img, strong_img,
+                           model, lambda_u, threshold)
+        total_acc += acc
         loss += L.item()
         L.backward()
         op.step()
 
-    return loss / max_batch
+    return loss / max_batch, total_acc / max_batch
 
 
 def save_model(model, epoch):
@@ -85,15 +88,18 @@ if __name__ == "__main__":
     val_loss_list = []
     train_loss_list = []
     val_acc_list = []
+    train_acc_list = []
     for epoch in tqdm(range(epochs)):
-        train_loss = run_train_epoch(model, op, train_loader, unlabel_loader,
-                                     max_batch, lambda_u, threshold)
+        start = time.time()
+        train_loss, train_acc = run_train_epoch(model, op, train_loader, unlabel_loader,
+                                                max_batch, lambda_u, threshold)
         val_loss, val_acc = run_val_epoch(model, val_loader, batch_size)
         train_loss_list.append(train_loss)
         val_loss_list.append(val_loss)
         val_acc_list.append(val_acc)
-        print(
-            f'[Epoch]:{epoch}/{epochs}, train_loss:{train_loss}, val_loss:{val_loss}, val_acc:{val_acc}')
-        if epoch % 2 == 0:
+        train_acc_list.append(train_acc)
+        interval = time.time() - start
+        print(f'[Epoch]:{epoch}/{epochs}, train_loss:{train_loss}, train_acc: {train_acc}, val_loss:{val_loss}, val_acc:{val_acc}, time:{interval}s')
+        if epoch % 5 == 0:
             save_model(model, epoch)
     save_model(model, epochs)

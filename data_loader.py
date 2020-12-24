@@ -64,8 +64,8 @@ def load_train_images(path):
 
 def normalize_images(images, normalization):
     new_images = []
-    for image in images:
-        new_images.append(normalization(image))
+    for image, i in images:
+        new_images.append([normalization(image), i])
     return new_images
 
 

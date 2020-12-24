@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 from fix_match.resnet_18 import resNet
 
 
@@ -17,7 +16,6 @@ class FixMatch():
         label_size, aug_size = label_img.shape[0], weak_img.shape[0]
         x = torch.cat([label_img, weak_img, strong_img], dim=0)
         out = self.net(x)
-        # print(label_size, aug_size)
         label_out, a_u, A_u = torch.split(
             out, [label_size, aug_size, aug_size], dim=0)
         return label_out, a_u, A_u

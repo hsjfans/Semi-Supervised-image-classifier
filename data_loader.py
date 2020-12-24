@@ -62,6 +62,13 @@ def load_train_images(path):
     return data, labels
 
 
+def normalize_images(images, normalization):
+    new_images = []
+    for image in images:
+        new_images.append(normalization(image))
+    return new_images
+
+
 def load_val_images(path, labels, normalization):
     txt_path = path + "/val_annotations.txt"
     val_data = []
@@ -121,8 +128,11 @@ def load_data(train_path, val_path, test_path, unlabel_path, batch_size, mu):
     train_loader = DataLoader(LabelDataSet(train_dataset), batch_size=batch_size,
                               shuffle=True)
     mean, std = get_mean_and_std(train_loader)
-    print(mean.shape, std.shape)
+    print(mean, std)
     normalization = transforms.Normalize(mean, std)
+    train_dataset = normalize_images(train_dataset, normalization)
+    train_loader = DataLoader(LabelDataSet(train_dataset), batch_size=batch_size,
+                              shuffle=True)
     val_dataset = load_val_images(val_path, labels, normalization)
     val_loader = DataLoader(LabelDataSet(val_dataset), batch_size=batch_size,
                             shuffle=True)

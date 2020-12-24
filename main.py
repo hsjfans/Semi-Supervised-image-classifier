@@ -3,6 +3,7 @@ import torch
 import time
 import torch.nn.functional as F
 from data_loader import load_data
+import torch.nn as nn
 import torch.optim as optim
 from config import train_path, test_path, val_path, unlabel_path, lambda_u, num_class,\
     mu, batch_size, lr, beta, weight_decay, epochs, threshold
@@ -18,12 +19,13 @@ def run_batch(label_img, label, weak_img, strong_img, model, lambda_u, threshold
     out, a_u, A_u = model(label_img, weak_img, strong_img)
     acc = (torch.argmax(out, dim=1) == label).sum().item() / len(label)
     # 1) Cross-entropy loss for labeled data.
-    l_x = F.cross_entropy(out, label)
+    l_x = nn.CrossEntropyLoss(out, label)
 
     # 2) Cross-entropy loss with pseudo-label B and conﬁdence for unlabeled data
     max_probs, a_u_label = torch.max(F.softmax(a_u), dim=1)
     mask = max_probs.ge(threshold).float()
-    l_u = (F.cross_entropy(A_u, a_u_label.detach(), reduction='none') * mask).mean()
+    l_u = (nn.CrossEntropyLoss(A_u, a_u_label.detach(),
+                               reduction='none') * mask).mean()
     loss = l_x + lambda_u * l_u
     return loss, acc
 

@@ -93,6 +93,7 @@ class LabelDataSet(Dataset):
     def __init__(self, data):
         self.data = data
         self.transform = transforms.Compose([
+            transforms.Grayscale(num_output_channels=3),
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=64,
                                   padding=int(64 * 0.125),
@@ -115,6 +116,7 @@ class UnLabelDataSet(Dataset):
         self.test = test
         self.transform = UnLabelTransform(normal_mean, normal_std)
         self.labeled_transform = transforms.Compose([
+            transforms.Grayscale(num_output_channels=3),
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=64,
                                   padding=int(64 * 0.125),

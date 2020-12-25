@@ -3,7 +3,6 @@ import torch
 import time
 import torch.nn.functional as F
 from data_loader import load_data
-import torch.nn as nn
 import torch.optim as optim
 from config import train_path, test_path, val_path, unlabel_path, lambda_u, num_class,\
     mu, batch_size, lr, beta, weight_decay, epochs, threshold

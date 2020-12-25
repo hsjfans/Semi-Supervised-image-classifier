@@ -26,11 +26,13 @@ def get_mean_and_std(loader):
 class UnLabelTransform:
     def __init__(self, mean, std):
         self.weak = transforms.Compose([
+            transforms.Grayscale(num_output_channels=3),
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=64,
                                   padding=int(64 * 0.125),
                                   padding_mode='reflect')])
         self.strong = transforms.Compose([
+            transforms.Grayscale(num_output_channels=3),
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=64,
                                   padding=int(64 * 0.125),

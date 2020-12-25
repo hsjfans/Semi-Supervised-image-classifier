@@ -48,3 +48,9 @@ class FixMatch():
 
     def state_dict(self):
         return self.net.state_dict()
+
+    def named_parameters(self):
+        return self.net.named_parameters()
+
+    def buffers(self):
+        return self.net.buffers()

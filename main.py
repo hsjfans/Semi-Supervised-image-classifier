@@ -1,4 +1,4 @@
-from fix_match import FixMatch, EMA
+from fix_match import FixMatch, EMA, resNet
 import torch
 import time
 import torch.nn.functional as F
@@ -27,6 +27,28 @@ import math
 #         res.append(correct_k.mul_(100.0 / batch_size))
 #     return res
 
+def interleave(x, size):
+    s = list(x.shape)
+    return x.reshape([-1, size] + s[1:]).transpose(0, 1).reshape([-1] + s[1:])
+
+
+def de_interleave(x, size):
+    s = list(x.shape)
+    return x.reshape([size, -1] + s[1:]).transpose(0, 1).reshape([-1] + s[1:])
+
+
+def train_forward(net, label_img, weak_img, strong_img):
+    # print(label_img.shape, weak_img.shape, strong_img.shape)
+    label_size, aug_size = label_img.shape[0], weak_img.shape[0]
+    mu = aug_size // label_size
+    x = interleave(
+        torch.cat([label_img, weak_img, strong_img], dim=0), 2 * mu + 1)
+    out = net(x)
+    out = de_interleave(out, 2 * mu + 1)
+    label_out, a_u, A_u = torch.split(
+        out, [label_size, aug_size, aug_size], dim=0)
+    return label_out, a_u, A_u
+
 
 def get_cosine_schedule_with_warmup(optimizer,
                                     num_warmup_steps,
@@ -48,7 +70,7 @@ def run_batch(label_img, label, weak_img, strong_img, model, lambda_u, threshold
     strong_img = strong_img.to(device)
     label_img = label_img.to(device)
     label = label.to(device)
-    out, a_u, A_u = model(label_img, weak_img, strong_img)
+    out, a_u, A_u = FixMatch.forward(model, label_img, weak_img, strong_img)
     acc = (torch.argmax(out, dim=1) == label).sum().item() / len(label)
     # 1) Cross-entropy loss for labeled data.
     l_x = F.cross_entropy(out, label, reduction='mean')
@@ -69,7 +91,7 @@ def run_val_epoch(model, val_loader):
         for img, label in val_loader:
             img = img.to(device)
             label = label.to(device)
-            out = model.predict(img)
+            out = FixMatch.predict(model, img)
             acc += (torch.argmax(out, dim=1) ==
                     label).sum().item() / len(label)
             L = F.cross_entropy(out, label)
@@ -119,7 +141,7 @@ def save_model(model, epoch):
 
 if __name__ == "__main__":
 
-    model = FixMatch(num_class, 34)
+    model = resNet(num_class, 34)
     model.to(device)
     op = optim.SGD(model.parameters(), lr=lr,
                    weight_decay=weight_decay, momentum=beta, nesterov=True)

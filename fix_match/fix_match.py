@@ -1,56 +1,34 @@
 import torch
-from fix_match.resnet_18 import resNet
 
 
 class FixMatch():
 
-    def __init__(self, num_class, ty=34):
-        super(FixMatch, self).__init__()
-        self.net = resNet(num_class, ty=ty)
-
-    def interleave(self, x, size):
+    @staticmethod
+    def interleave(x, size):
         s = list(x.shape)
         return x.reshape([-1, size] + s[1:]).transpose(0, 1).reshape([-1] + s[1:])
 
-    def de_interleave(self, x, size):
+    @staticmethod
+    def de_interleave(x, size):
         s = list(x.shape)
         return x.reshape([size, -1] + s[1:]).transpose(0, 1).reshape([-1] + s[1:])
 
-    def predict(self, img):
-        return self.net(img)
+    @staticmethod
+    def predict(net, img):
+        return net(img)
 
-    def forward(self, label_img, weak_img, strong_img):
+    @staticmethod
+    def forward(net, label_img, weak_img, strong_img):
         # print(label_img.shape, weak_img.shape, strong_img.shape)
         label_size, aug_size = label_img.shape[0], weak_img.shape[0]
         mu = aug_size // label_size
-        x = self.interleave(
+        x = FixMatch.interleave(
             torch.cat([label_img, weak_img, strong_img], dim=0), 2 * mu + 1)
-        out = self.net(x)
-        out = self.de_interleave(out, 2 * mu + 1)
+        out = net(x)
+        out = FixMatch.de_interleave(out, 2 * mu + 1)
         label_out, a_u, A_u = torch.split(
             out, [label_size, aug_size, aug_size], dim=0)
         return label_out, a_u, A_u
 
-    def __call__(self, label_img, weak_img, strong_img):
-        return self.forward(label_img, weak_img, strong_img)
-
-    def parameters(self):
-        return self.net.parameters()
-
-    def to(self, device):
-        self.net.to(device)
-
-    def train(self):
-        return self.net.train()
-
-    def eval(self):
-        return self.net.eval()
-
-    def state_dict(self):
-        return self.net.state_dict()
-
-    def named_parameters(self):
-        return self.net.named_parameters()
-
-    def buffers(self):
-        return self.net.buffers()
+    # def __call__(self, net, label_img, weak_img, strong_img):
+    #     return self.forward(net, label_img, weak_img, strong_img)

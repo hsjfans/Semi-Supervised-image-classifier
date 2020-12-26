@@ -27,28 +27,6 @@ import math
 #         res.append(correct_k.mul_(100.0 / batch_size))
 #     return res
 
-def interleave(x, size):
-    s = list(x.shape)
-    return x.reshape([-1, size] + s[1:]).transpose(0, 1).reshape([-1] + s[1:])
-
-
-def de_interleave(x, size):
-    s = list(x.shape)
-    return x.reshape([size, -1] + s[1:]).transpose(0, 1).reshape([-1] + s[1:])
-
-
-def train_forward(net, label_img, weak_img, strong_img):
-    # print(label_img.shape, weak_img.shape, strong_img.shape)
-    label_size, aug_size = label_img.shape[0], weak_img.shape[0]
-    mu = aug_size // label_size
-    x = interleave(
-        torch.cat([label_img, weak_img, strong_img], dim=0), 2 * mu + 1)
-    out = net(x)
-    out = de_interleave(out, 2 * mu + 1)
-    label_out, a_u, A_u = torch.split(
-        out, [label_size, aug_size, aug_size], dim=0)
-    return label_out, a_u, A_u
-
 
 def get_cosine_schedule_with_warmup(optimizer,
                                     num_warmup_steps,
@@ -94,7 +72,7 @@ def run_val_epoch(model, val_loader):
             out = FixMatch.predict(model, img)
             acc += (torch.argmax(out, dim=1) ==
                     label).sum().item() / len(label)
-            L = F.cross_entropy(out, label)
+            L = F.cross_entropy(out, label, reduction='mean')
             loss += L.item()
     return loss / len(val_loader), acc / len(val_loader)
 

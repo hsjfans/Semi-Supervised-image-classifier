@@ -14,6 +14,8 @@ from os.path import join as pjoin
 import logging
 import os
 import pandas as pd
+import numpy as np
+import random
 
 # def accuracy(output, target, topk=(1,)):
 #     """Computes the precision@k for the specified values of k"""
@@ -53,6 +55,12 @@ def init_log():
     sh.setFormatter(formatter)
     logger.addHandler(sh)
     logger.addHandler(fh)
+
+
+def set_seed(seed=10):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
 
 def get_cosine_schedule_with_warmup(optimizer,
@@ -147,13 +155,12 @@ def save_checkpoint(check_point, is_best):
         torch.save(check_point, 'best_checkpoint.pt')
 
 
-def train(model, epochs, ema_model, op, scheduler, train_loader, val_loader, unlabel_loader):
+def train(model, epochs, ema_model, op, scheduler, train_loader, val_loader, unlabel_loader, epoch=0, best_acc=0.0):
     val_loss_list = []
     train_loss_list = []
     val_acc_list = []
     train_acc_list = []
-    best_acc = 0.0
-    for epoch in tqdm(range(epochs)):
+    for epoch in tqdm(range(epoch, epochs, 1)):
         start = time.time()
         train_loss, train_acc = run_train_epoch(model, op, train_loader, unlabel_loader,
                                                 eval_step, lambda_u, threshold,
@@ -165,14 +172,14 @@ def train(model, epochs, ema_model, op, scheduler, train_loader, val_loader, unl
         train_acc_list.append(train_acc)
         interval = time.time() - start
         logger.info(
-            f'[Epoch]:{epoch}/{epochs}, train_loss:{train_loss}, train_acc: {train_acc}, val_loss:{val_loss}, val_acc:{val_acc}, time:{interval}s')
+            f'[Epoch]:{epoch+1}/{epochs}, train_loss:{train_loss}, train_acc: {train_acc}, val_loss:{val_loss}, val_acc:{val_acc}, time:{interval}s')
         is_best = False
         if best_acc < val_acc:
             best_acc = val_acc
             is_best = True
         check_point = {
             'epoch': epoch + 1,
-            'state_dict': model.state_dict(),
+            'model': model.state_dict(),
             'ema_state_dict': ema_model.ema.module.state_dict(),
             'optimizer': op.state_dict(),
             'scheduler': scheduler.state_dict(),
@@ -196,7 +203,19 @@ def predict(model, test_loader, labels, test_files):
     result.to_csv('predict.txt', index=False, header=False)
 
 
+def load_model(check_point, model, op, scheduler, ema_model):
+    checkpoint = torch.load(check_point)
+    best_acc = checkpoint['best_acc']
+    epoch = checkpoint['epoch']
+    model.load_state_dict(checkpoint['state_dict'])
+    ema_model.ema.load_state_dict(checkpoint['ema_state_dict'])
+    op.load_state_dict(checkpoint['optimizer'])
+    scheduler.load_state_dict(checkpoint['scheduler'])
+    return model, op, scheduler, ema_model, epoch, best_acc
+
+
 if __name__ == "__main__":
+    set_seed()
     init_log()
     logger.info("Starting train model")
     model = resNet(num_class, 34)
@@ -206,10 +225,18 @@ if __name__ == "__main__":
                    weight_decay=weight_decay, momentum=beta, nesterov=True)
     scheduler = get_cosine_schedule_with_warmup(
         op, warmup, total_steps)
+    check_point = 'best_checkpoint.pt'
+    resume = True
+    if resume:
+        model, op, scheduler, ema_model, epoch, best_acc = load_model(
+            check_point, model, op, scheduler, ema_model)
+    else:
+        epoch, best_acc = 0, 0
     logger.info('handle dataset')
     train_loader, val_loader, test_loader, unlabel_loader, labels, test_files = load_data(
         train_path, val_path, test_path, unlabel_path, batch_size, mu)
     epochs = math.ceil(total_steps / eval_step)
     train(model, epochs, ema_model, op, scheduler,
-          train_loader, val_loader, unlabel_loader)
+          train_loader, val_loader, unlabel_loader,
+          epoch, best_acc)
     predict(model, test_loader, labels, test_files)

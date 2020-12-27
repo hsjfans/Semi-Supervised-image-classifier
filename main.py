@@ -149,13 +149,14 @@ def run_train_epoch(model, op, train_loader, unlabel_loader,
     return loss / max_batch, total_acc / max_batch
 
 
-def save_checkpoint(check_point, is_best):
-    torch.save(check_point, 'checkpoint.pt')
+def save_checkpoint(check_point, is_best, path):
+    torch.save(check_point, f'{path}/checkpoint.pt')
     if is_best:
-        torch.save(check_point, 'best_checkpoint.pt')
+        torch.save(check_point, f'{path}/best_checkpoint.pt')
 
 
-def train(model, epochs, ema_model, op, scheduler, train_loader, val_loader, unlabel_loader, epoch=0, best_acc=0.0):
+def train(model, epochs, ema_model, op, scheduler, train_loader, val_loader,
+          unlabel_loader, epoch=0, best_acc=0.0, path=''):
     val_loss_list = []
     train_loss_list = []
     val_acc_list = []
@@ -186,7 +187,7 @@ def train(model, epochs, ema_model, op, scheduler, train_loader, val_loader, unl
             'val_acc': val_acc,
             'best_acc': best_acc
         }
-        save_checkpoint(check_point, is_best)
+        save_checkpoint(check_point, is_best, path)
 
 
 def predict(model, test_loader, labels, test_files):
@@ -203,8 +204,8 @@ def predict(model, test_loader, labels, test_files):
     result.to_csv('predict.txt', index=False, header=False)
 
 
-def load_model(check_point, model, op, scheduler, ema_model):
-    checkpoint = torch.load(check_point)
+def load_model(path, model, op, scheduler, ema_model):
+    checkpoint = torch.load(f'{path}/best_checkpoint.pt')
     best_acc = checkpoint['best_acc']
     epoch = checkpoint['epoch']
     model.load_state_dict(checkpoint['state_dict'])
@@ -214,7 +215,7 @@ def load_model(check_point, model, op, scheduler, ema_model):
     return model, op, scheduler, ema_model, epoch, best_acc
 
 
-def main(test=True, resume=True):
+def main(test=True, resume=True, path=''):
     set_seed()
     init_log()
     logger.info("Starting train model")
@@ -225,10 +226,9 @@ def main(test=True, resume=True):
                    weight_decay=weight_decay, momentum=beta, nesterov=True)
     scheduler = get_cosine_schedule_with_warmup(
         op, warmup, total_steps)
-    check_point = 'best_checkpoint.pt'
     if resume:
         model, op, scheduler, ema_model, epoch, best_acc = load_model(
-            check_point, model, op, scheduler, ema_model)
+            path, model, op, scheduler, ema_model)
     else:
         epoch, best_acc = 0, 0
     logger.info('handle dataset')
@@ -240,8 +240,8 @@ def main(test=True, resume=True):
     else:
         train(model, epochs, ema_model, op, scheduler,
               train_loader, val_loader, unlabel_loader,
-              epoch, best_acc)
+              epoch, best_acc, path)
 
 
 if __name__ == "__main__":
-    main(test=True, resume=True)
+    main(test=True, resume=True, path='')

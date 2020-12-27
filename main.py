@@ -215,7 +215,7 @@ def load_model(path, model, op, scheduler, ema_model):
     return model, op, scheduler, ema_model, epoch, best_acc
 
 
-def main(test=True, resume=True, path=''):
+def main(train_path, val_path, test_path, unlabel_path, test=True, resume=True, path=''):
     set_seed()
     init_log()
     logger.info("Starting train model")
@@ -244,4 +244,5 @@ def main(test=True, resume=True, path=''):
 
 
 if __name__ == "__main__":
-    main(test=True, resume=True, path='')
+    main(train_path, val_path, test_path,
+         unlabel_path, test=True, resume=True, path='')

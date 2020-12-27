@@ -214,7 +214,7 @@ def load_model(check_point, model, op, scheduler, ema_model):
     return model, op, scheduler, ema_model, epoch, best_acc
 
 
-if __name__ == "__main__":
+def main(test=True, resume=True):
     set_seed()
     init_log()
     logger.info("Starting train model")
@@ -226,7 +226,6 @@ if __name__ == "__main__":
     scheduler = get_cosine_schedule_with_warmup(
         op, warmup, total_steps)
     check_point = 'best_checkpoint.pt'
-    resume = True
     if resume:
         model, op, scheduler, ema_model, epoch, best_acc = load_model(
             check_point, model, op, scheduler, ema_model)
@@ -236,7 +235,13 @@ if __name__ == "__main__":
     train_loader, val_loader, test_loader, unlabel_loader, labels, test_files = load_data(
         train_path, val_path, test_path, unlabel_path, batch_size, mu)
     epochs = math.ceil(total_steps / eval_step)
-    train(model, epochs, ema_model, op, scheduler,
-          train_loader, val_loader, unlabel_loader,
-          epoch, best_acc)
-    predict(model, test_loader, labels, test_files)
+    if test:
+        predict(model, test_loader, labels, test_files)
+    else:
+        train(model, epochs, ema_model, op, scheduler,
+              train_loader, val_loader, unlabel_loader,
+              epoch, best_acc)
+
+
+if __name__ == "__main__":
+    main(test=True, resume=True)

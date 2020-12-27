@@ -10,7 +10,8 @@ from tqdm import tqdm
 from config import device
 from torch.optim.lr_scheduler import LambdaLR
 import math
-
+import os
+import shutil
 
 # def accuracy(output, target, topk=(1,)):
 #     """Computes the precision@k for the specified values of k"""
@@ -112,9 +113,14 @@ def run_train_epoch(model, op, train_loader, unlabel_loader,
     return loss / max_batch, total_acc / max_batch
 
 
-def save_model(model, epoch):
-    check_point = {'model': model.state_dict(), 'epoch': epoch}
-    torch.save(check_point, f'epoch_{epoch}.pt')
+# def save_model(model, epoch):
+#     check_point = {'model': model.state_dict(), 'epoch': epoch}
+#     torch.save(check_point, f'epoch_{epoch}.pt')
+
+
+def save_checkpoint(check_point, epoch):
+    filepath = f'epoch_{epoch}_{time.time()}_checkpoint.pt'
+    torch.save(check_point, filepath)
 
 
 if __name__ == "__main__":
@@ -146,6 +152,14 @@ if __name__ == "__main__":
         train_acc_list.append(train_acc)
         interval = time.time() - start
         print(f'[Epoch]:{epoch}/{epochs}, train_loss:{train_loss}, train_acc: {train_acc}, val_loss:{val_loss}, val_acc:{val_acc}, time:{interval}s')
-        if epoch % 5 == 0:
-            save_model(model, epoch)
-    save_model(model, epochs)
+        # if epoch % 5 == 0:
+        check_point = {
+            'epoch': epoch + 1,
+            'state_dict': model.state_dict(),
+            'ema_state_dict': ema_model.ema.module.state_dict(),
+            'optimizer': op.state_dict(),
+            'scheduler': scheduler.state_dict(),
+        }
+        if epoch % 5 == 0 or epoch == epochs - 1:
+            save_checkpoint(check_point, epoch)
+    # save_model(model, epochs)

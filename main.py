@@ -13,6 +13,7 @@ import math
 from os.path import join as pjoin
 import logging
 import os
+import pandas as pd
 
 # def accuracy(output, target, topk=(1,)):
 #     """Computes the precision@k for the specified values of k"""
@@ -146,7 +147,7 @@ def save_checkpoint(check_point, is_best):
         torch.save(check_point, 'best_checkpoint.pt')
 
 
-def train(model, epochs, ema_model, op, scheduler):
+def train(model, epochs, ema_model, op, scheduler, train_loader, val_loader, unlabel_loader):
     val_loss_list = []
     train_loss_list = []
     val_acc_list = []
@@ -181,6 +182,20 @@ def train(model, epochs, ema_model, op, scheduler):
         save_checkpoint(check_point, is_best)
 
 
+def predict(model, test_loader, labels, test_files):
+    predicts = []
+    for img in test_loader:
+        img = img.to(device)
+        out = FixMatch.predict(model, img)
+        predict_labels = torch.argmax(out, dim=1).tolist()
+        predicts.extend([labels[x] for x in predict_labels])
+    result = pd.DataFrame({
+        'image': test_files,
+        'class': predicts,
+    })
+    result.to_csv('predict.txt', index=False, header=False)
+
+
 if __name__ == "__main__":
     init_log()
     logger.info("Starting train model")
@@ -192,7 +207,9 @@ if __name__ == "__main__":
     scheduler = get_cosine_schedule_with_warmup(
         op, warmup, total_steps)
     logger.info('handle dataset')
-    train_loader, val_loader, test_loader, unlabel_loader, labels = load_data(
+    train_loader, val_loader, test_loader, unlabel_loader, labels, test_files = load_data(
         train_path, val_path, test_path, unlabel_path, batch_size, mu)
     epochs = math.ceil(total_steps / eval_step)
-    train(model, epochs, ema_model, op, scheduler)
+    train(model, epochs, ema_model, op, scheduler,
+          train_loader, val_loader, unlabel_loader)
+    predict(model, test_loader, labels, test_files)

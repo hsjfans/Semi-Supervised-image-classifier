@@ -151,7 +151,8 @@ def load_data(train_path, val_path, test_path, unlabel_path, batch_size, mu):
     unlabel_dataset = load_unlabeled_data(unlabel_path)
     unlabel_loader = DataLoader(UnLabelDataSet(unlabel_dataset), batch_size=mu * batch_size,
                                 shuffle=True)
-    return train_loader, val_loader, test_loader, unlabel_loader, labels
+    test_files = os.listdir(test_path)
+    return train_loader, val_loader, test_loader, unlabel_loader, labels, test_files
 
 
 if __name__ == "__main__":

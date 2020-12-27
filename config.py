@@ -15,8 +15,8 @@ weight_decay = 0.001
 num_classes = 200
 threshold = 0.95
 warmup = 0
-total_steps = 2**20
-eval_step = 1024
+total_steps = 2**16
+eval_step = 2**6
 ema_decay = 0.999
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

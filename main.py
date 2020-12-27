@@ -10,8 +10,9 @@ from tqdm import tqdm
 from config import device
 from torch.optim.lr_scheduler import LambdaLR
 import math
+from os.path import join as pjoin
+import logging
 import os
-import shutil
 
 # def accuracy(output, target, topk=(1,)):
 #     """Computes the precision@k for the specified values of k"""
@@ -27,6 +28,30 @@ import shutil
 #         correct_k = correct[:k].view(-1).float().sum(0)
 #         res.append(correct_k.mul_(100.0 / batch_size))
 #     return res
+
+logger = None
+
+
+def init_log():
+    """ 
+    initlizate log
+    """
+    global logger
+    logger = logging.getLogger('FixMatch')
+    logger.setLevel(logging.INFO)
+    log_path = pjoin('out', 'logs')
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+    log_name = pjoin(log_path, 'train.log')
+    sh = logging.StreamHandler()
+    fh = logging.FileHandler(log_name, mode='w')
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+    fh.setFormatter(formatter)
+    sh.setFormatter(formatter)
+    logger.addHandler(sh)
+    logger.addHandler(fh)
 
 
 def get_cosine_schedule_with_warmup(optimizer,
@@ -90,15 +115,17 @@ def run_train_epoch(model, op, train_loader, unlabel_loader,
     for _ in range(max_batch):
         try:
             img, label = labeled_iter.next()
-        except:
+        except Exception:
             labeled_iter = iter(train_loader)
             img, label = labeled_iter.next()
+            logger.info('reload dataset')
 
         try:
             weak_img, strong_img = unlabeled_iter.next()
-        except:
+        except Exception:
             unlabeled_iter = iter(unlabel_loader)
             weak_img, strong_img = unlabeled_iter.next()
+            logger.info('reload dataset')
 
         L, acc = run_batch(img, label, weak_img, strong_img,
                            model, lambda_u, threshold)
@@ -113,33 +140,18 @@ def run_train_epoch(model, op, train_loader, unlabel_loader,
     return loss / max_batch, total_acc / max_batch
 
 
-# def save_model(model, epoch):
-#     check_point = {'model': model.state_dict(), 'epoch': epoch}
-#     torch.save(check_point, f'epoch_{epoch}.pt')
+def save_checkpoint(check_point, is_best):
+    torch.save(check_point, 'checkpoint.pt')
+    if is_best:
+        torch.save(check_point, 'best_checkpoint.pt')
 
 
-def save_checkpoint(check_point, epoch):
-    filepath = f'epoch_{epoch}_{time.time()}_checkpoint.pt'
-    torch.save(check_point, filepath)
-
-
-if __name__ == "__main__":
-
-    model = resNet(num_class, 34)
-    model.to(device)
-    op = optim.SGD(model.parameters(), lr=lr,
-                   weight_decay=weight_decay, momentum=beta, nesterov=True)
-    scheduler = get_cosine_schedule_with_warmup(
-        op, warmup, total_steps)
-    train_loader, val_loader, test_loader, unlabel_loader, labels = load_data(
-        train_path, val_path, test_path, unlabel_path, batch_size, mu)
-    epochs = math.ceil(total_steps / eval_step)
-    ema_model = EMA(device, model, ema_decay)
-
+def train(model, epochs, ema_model, op, scheduler):
     val_loss_list = []
     train_loss_list = []
     val_acc_list = []
     train_acc_list = []
+    best_acc = 0.0
     for epoch in tqdm(range(epochs)):
         start = time.time()
         train_loss, train_acc = run_train_epoch(model, op, train_loader, unlabel_loader,
@@ -151,15 +163,36 @@ if __name__ == "__main__":
         val_acc_list.append(val_acc)
         train_acc_list.append(train_acc)
         interval = time.time() - start
-        print(f'[Epoch]:{epoch}/{epochs}, train_loss:{train_loss}, train_acc: {train_acc}, val_loss:{val_loss}, val_acc:{val_acc}, time:{interval}s')
-        # if epoch % 5 == 0:
+        logger.info(
+            f'[Epoch]:{epoch}/{epochs}, train_loss:{train_loss}, train_acc: {train_acc}, val_loss:{val_loss}, val_acc:{val_acc}, time:{interval}s')
+        is_best = False
+        if best_acc < val_acc:
+            best_acc = val_acc
+            is_best = True
         check_point = {
             'epoch': epoch + 1,
             'state_dict': model.state_dict(),
             'ema_state_dict': ema_model.ema.module.state_dict(),
             'optimizer': op.state_dict(),
             'scheduler': scheduler.state_dict(),
+            'val_acc': val_acc,
+            'best_acc': best_acc
         }
-        if epoch % 5 == 0 or epoch == epochs - 1:
-            save_checkpoint(check_point, epoch)
-    # save_model(model, epochs)
+        save_checkpoint(check_point, is_best)
+
+
+if __name__ == "__main__":
+    init_log()
+    logger.info("Starting train model")
+    model = resNet(num_class, 34)
+    model.to(device)
+    ema_model = EMA(device, model, ema_decay)
+    op = optim.SGD(model.parameters(), lr=lr,
+                   weight_decay=weight_decay, momentum=beta, nesterov=True)
+    scheduler = get_cosine_schedule_with_warmup(
+        op, warmup, total_steps)
+    logger.info('handle dataset')
+    train_loader, val_loader, test_loader, unlabel_loader, labels = load_data(
+        train_path, val_path, test_path, unlabel_path, batch_size, mu)
+    epochs = math.ceil(total_steps / eval_step)
+    train(model, epochs, ema_model, op, scheduler)

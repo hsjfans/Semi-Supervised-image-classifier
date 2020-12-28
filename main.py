@@ -178,10 +178,12 @@ def train(model, epochs, ema_model, op, scheduler, train_loader, val_loader,
         if best_acc < val_acc:
             best_acc = val_acc
             is_best = True
+        ema_save = ema_model.ema.module if hasattr(
+            ema_model.ema, "module") else ema_model.ema
         check_point = {
             'epoch': epoch + 1,
             'model': model.state_dict(),
-            'ema_state_dict': ema_model.ema.module.state_dict(),
+            'ema_state_dict': ema_save.state_dict(),
             'optimizer': op.state_dict(),
             'scheduler': scheduler.state_dict(),
             'val_acc': val_acc,
@@ -245,4 +247,4 @@ def main(train_path, val_path, test_path, unlabel_path, test=True, resume=True, 
 
 if __name__ == "__main__":
     main(train_path, val_path, test_path,
-         unlabel_path, test=True, resume=True, path='')
+         unlabel_path, test=False, resume=False, path='')

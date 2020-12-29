@@ -194,7 +194,7 @@ def train(model, epochs, ema_model, op, scheduler, train_loader, val_loader,
 
 def predict(model, test_loader, labels, test_files):
     predicts = []
-    for img in test_loader:
+    for img in tqdm(test_loader):
         img = img.to(device)
         out = FixMatch.predict(model, img)
         predict_labels = torch.argmax(out, dim=1).tolist()

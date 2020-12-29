@@ -221,7 +221,7 @@ def main(train_path, val_path, test_path, unlabel_path, test=True, resume=True, 
     set_seed()
     init_log()
     logger.info("Starting train model")
-    model = resNet(num_class, 34)
+    model = resNet(num_class, 152)
     model.to(device)
     ema_model = EMA(device, model, ema_decay)
     op = optim.SGD(model.parameters(), lr=lr,

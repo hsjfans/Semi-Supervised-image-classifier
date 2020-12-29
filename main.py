@@ -217,11 +217,11 @@ def load_model(path, model, op, scheduler, ema_model):
     return model, op, scheduler, ema_model, epoch, best_acc
 
 
-def main(train_path, val_path, test_path, unlabel_path, test=True, resume=True, path=''):
+def main(train_path, val_path, test_path, unlabel_path, test=True, resume=True, path='',net_size = 152):
     set_seed()
     init_log()
     logger.info("Starting train model")
-    model = resNet(num_class, 152)
+    model = resNet(num_class, net_size)
     model.to(device)
     ema_model = EMA(device, model, ema_decay)
     op = optim.SGD(model.parameters(), lr=lr,

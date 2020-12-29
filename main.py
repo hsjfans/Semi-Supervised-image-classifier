@@ -234,11 +234,11 @@ def main(train_path, val_path, test_path, unlabel_path, test=True, resume=True, 
     else:
         epoch, best_acc = 0, 0
     logger.info('handle dataset')
-    train_loader, val_loader, test_loader, unlabel_loader, labels, test_files = load_data(
+    train_loader, val_loader, test_loader, unlabel_loader, labels, class2labels, test_files = load_data(
         train_path, val_path, test_path, unlabel_path, batch_size, mu)
     epochs = math.ceil(total_steps / eval_step)
     if test:
-        predict(model, test_loader, labels, test_files)
+        predict(model, test_loader, class2labels, test_files)
     else:
         train(model, epochs, ema_model, op, scheduler,
               train_loader, val_loader, unlabel_loader,

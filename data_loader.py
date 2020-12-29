@@ -54,15 +54,17 @@ def load_train_images(path):
     img_classes = os.listdir(path)
     data = []
     labels = {}
+    class2labels = []
     for i, image_class in tqdm(enumerate(img_classes)):
         labels[image_class] = i
+        class2labels.append(image_class)
         images = os.listdir(f'{path}/{image_class}/images')
         for image in images:
             img = Image.open(
                 f'{path}/{image_class}/images/{image}')
             #  torch.from_numpy().permute(2, 0, 1).float()
             data.append([img, i])
-    return data, labels
+    return data, labels, class2labels
 
 
 def load_val_images(path, labels):
@@ -139,7 +141,7 @@ class UnLabelDataSet(Dataset):
 
 
 def load_data(train_path, val_path, test_path, unlabel_path, batch_size, mu):
-    train_dataset, labels = load_train_images(train_path)
+    train_dataset, labels, class2labels = load_train_images(train_path)
     train_loader = DataLoader(LabelDataSet(train_dataset), batch_size=batch_size,
                               shuffle=True)
     val_dataset = load_val_images(val_path, labels)
@@ -152,11 +154,11 @@ def load_data(train_path, val_path, test_path, unlabel_path, batch_size, mu):
     unlabel_loader = DataLoader(UnLabelDataSet(unlabel_dataset), batch_size=mu * batch_size,
                                 shuffle=True)
     test_files = os.listdir(test_path)
-    return train_loader, val_loader, test_loader, unlabel_loader, labels, test_files
+    return train_loader, val_loader, test_loader, unlabel_loader, labels, class2labels, test_files
 
 
 if __name__ == "__main__":
-    train_loader, val_loader, test_loader, unlabel_loader, labels = load_data(
+    train_loader, val_loader, test_loader, unlabel_loader, labels, class2labels, test_files = load_data(
         train_path, val_path, test_path, unlabel_path, batch_size, mu)
     iter(unlabel_loader).next()
 

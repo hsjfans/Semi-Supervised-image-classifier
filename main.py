@@ -210,7 +210,7 @@ def load_model(path, model, op, scheduler, ema_model):
     checkpoint = torch.load(f'{path}/best_checkpoint.pt')
     best_acc = checkpoint['best_acc']
     epoch = checkpoint['epoch']
-    model.load_state_dict(checkpoint['state_dict'])
+    model.load_state_dict(checkpoint['model'])
     ema_model.ema.load_state_dict(checkpoint['ema_state_dict'])
     op.load_state_dict(checkpoint['optimizer'])
     scheduler.load_state_dict(checkpoint['scheduler'])
